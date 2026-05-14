@@ -17,14 +17,21 @@
       margin-bottom: 8px;
     }
 
-    p {
+    .intro {
       color: #555;
       margin-top: 0;
+      margin-bottom: 10px;
+    }
+
+    .status {
+      color: #666;
+      font-size: 14px;
+      margin-top: 18px;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: 20px;
       margin-top: 28px;
     }
@@ -38,11 +45,12 @@
 
     .card img {
       width: 100%;
-      height: 180px;
+      height: 190px;
       object-fit: cover;
       border-radius: 8px;
       display: block;
       margin-bottom: 12px;
+      background: #eee;
     }
 
     .card h2 {
@@ -51,23 +59,145 @@
       line-height: 1.3;
     }
 
-    .card a {
-      font-size: 13px;
+    .url {
+      display: block;
+      font-size: 12px;
       word-break: break-all;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .actions a,
+    .actions button {
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 6px 9px;
+      background: #fff;
       color: #0969da;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .actions button:hover,
+    .actions a:hover {
+      background: #f0f3f6;
     }
   </style>
 </head>
 <body>
   <h1>Fairy Tale Styles — Image Library</h1>
-  <p>Reference images for Midjourney style prompts.</p>
+  <p class="intro">Reference images for Midjourney style prompts. Upload new image files to this GitHub repository and this page will list them automatically.</p>
 
-  <div class="grid">
-    <div class="card">
-      <img src="Antique%20woodcut%20fairy-tale%20illustration%20Fox%20Bear.jpg" alt="Antique woodcut fairy-tale illustration Fox Bear" />
-      <h2>Antique woodcut fairy-tale illustration Fox Bear</h2>
-      <a href="Antique%20woodcut%20fairy-tale%20illustration%20Fox%20Bear.jpg" target="_blank">Open image URL</a>
-    </div>
-  </div>
+  <p id="status" class="status">Loading images…</p>
+  <div id="grid" class="grid"></div>
+
+  <script>
+    const owner = "vassilissarakinos";
+    const repo = "Fairy_tale_styles";
+    const branch = "main";
+    const pagesBaseUrl = `https://${owner}.github.io/${repo}/`;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+
+    const grid = document.getElementById("grid");
+    const status = document.getElementById("status");
+
+    function encodePath(path) {
+      return path.split("/").map(encodeURIComponent).join("/");
+    }
+
+    function makeTitle(path) {
+      const filename = path.split("/").pop();
+      return filename
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[-_]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    async function copyToClipboard(text, button) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const oldText = button.textContent;
+        button.textContent = "Copied!";
+        setTimeout(() => button.textContent = oldText, 1200);
+      } catch (error) {
+        window.prompt("Copy this URL:", text);
+      }
+    }
+
+    async function loadImages() {
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+
+        const data = await response.json();
+        const images = data.tree
+          .filter(item => item.type === "blob")
+          .map(item => item.path)
+          .filter(path => imageExtensions.some(ext => path.toLowerCase().endsWith(ext)))
+          .sort((a, b) => a.localeCompare(b));
+
+        status.textContent = images.length === 1 ? "1 image found." : `${images.length} images found.`;
+        grid.innerHTML = "";
+
+        images.forEach(path => {
+          const encodedPath = encodePath(path);
+          const imageUrl = pagesBaseUrl + encodedPath;
+          const title = makeTitle(path);
+
+          const card = document.createElement("div");
+          card.className = "card";
+
+          const img = document.createElement("img");
+          img.src = imageUrl;
+          img.alt = title;
+          img.loading = "lazy";
+
+          const heading = document.createElement("h2");
+          heading.textContent = title;
+
+          const url = document.createElement("span");
+          url.className = "url";
+          url.textContent = imageUrl;
+
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          const openLink = document.createElement("a");
+          openLink.href = imageUrl;
+          openLink.target = "_blank";
+          openLink.rel = "noopener noreferrer";
+          openLink.textContent = "Open image URL";
+
+          const copyButton = document.createElement("button");
+          copyButton.type = "button";
+          copyButton.textContent = "Copy URL";
+          copyButton.addEventListener("click", () => copyToClipboard(imageUrl, copyButton));
+
+          actions.appendChild(openLink);
+          actions.appendChild(copyButton);
+
+          card.appendChild(img);
+          card.appendChild(heading);
+          card.appendChild(url);
+          card.appendChild(actions);
+          grid.appendChild(card);
+        });
+      } catch (error) {
+        status.textContent = "Could not load images. Check that the repository is public and the branch name is main.";
+        console.error(error);
+      }
+    }
+
+    loadImages();
+  </script>
 </body>
 </html>
